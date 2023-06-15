@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>DashboardTestReport_14June_FSCcaseworker_SIT.html</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    let visibleString = getQueryParameter('visible') || 'all';
+    visibleString = visibleString.toLowerCase();
+    const checkedItems = visibleString.split(',');
+
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++) {
+        filterItems[i].hidden = false;
+
+        if (visibleString != 'all') {
+            filterItems[i].checked = checkedItems.includes(filterItems[i].getAttribute('data-test-result'));
+            filterTable(filterItems[i]);
+        }
+    }
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>DashboardTestReport_14June_FSCcaseworker_SIT.html</h1>
+    <p>Report generated on 14-Jun-2023 at 18:59:09 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.2.0</p>
+    <h2>Summary</h2>
+    <p>48 tests ran in 1499.27 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">30 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">18 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th>
+          <th class="sortable links" col="links">Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_6_PS2_6To10</td>
+          <td class="col-duration">20.71</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:101: in test_6_PS2_6To10<br/>    self.check(practice_standard, link_index,<br/>main.py:25: in check<br/>    dashboard.click_case_count(link_index)<br/>page.py:60: in click_case_count<br/>    all_case_links[link_index].click()<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webelement.py:94: in click<br/>    self._execute(Command.CLICK_ELEMENT)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webelement.py:403: in _execute<br/>    return self._parent.execute(command, params)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webdriver.py:440: in execute<br/>    self.error_handler.check_response(response)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:245: in check_response<br/>    raise exception_class(message, screen, stacktrace)<br/><span class="error">E   selenium.common.exceptions.ElementClickInterceptedException: Message: element click intercepted: Element &lt;span _ngcontent-dpa-c841=&quot;&quot; class=&quot;f-field-5 clickable position ng-star-inserted&quot;&gt;...&lt;/span&gt; is not clickable at point (840, 68). Other element would receive the click: &lt;span _ngcontent-dpa-c214=&quot;&quot; class=&quot;pcoded-mtext f-header-5 ng-tns-c214-1&quot;&gt;...&lt;/span&gt;</span><br/><span class="error">E     (Session info: chrome=114.0.5735.110)</span><br/><span class="error">E   Stacktrace:</span><br/><span class="error">E   Backtrace:</span><br/><span class="error">E   	GetHandleVerifier [0x00B9A813+48355]</span><br/><span class="error">E   	(No symbol) [0x00B2C4B1]</span><br/><span class="error">E   	(No symbol) [0x00A35358]</span><br/><span class="error">E   	(No symbol) [0x00A65062]</span><br/><span class="error">E   	(No symbol) [0x00A63B98]</span><br/><span class="error">E   	(No symbol) [0x00A6239B]</span><br/><span class="error">E   	(No symbol) [0x00A6179E]</span><br/><span class="error">E   	(No symbol) [0x00A59F5C]</span><br/><span class="error">E   	(No symbol) [0x00A7A73C]</span><br/><span class="error">E   	(No symbol) [0x00A59A36]</span><br/><span class="error">E   	(No symbol) [0x00A7AA94]</span><br/><span class="error">E   	(No symbol) [0x00A8C922]</span><br/><span class="error">E   	(No symbol) [0x00A7A536]</span><br/><span class="error">E   	(No symbol) [0x00A582DC]</span><br/><span class="error">E   	(No symbol) [0x00A593DD]</span><br/><span class="error">E   	GetHandleVerifier [0x00DFAABD+2539405]</span><br/><span class="error">E   	GetHandleVerifier [0x00E3A78F+2800735]</span><br/><span class="error">E   	GetHandleVerifier [0x00E3456C+2775612]</span><br/><span class="error">E   	GetHandleVerifier [0x00C251E0+616112]</span><br/><span class="error">E   	(No symbol) [0x00B35F8C]</span><br/><span class="error">E   	(No symbol) [0x00B32328]</span><br/><span class="error">E   	(No symbol) [0x00B3240B]</span><br/><span class="error">E   	(No symbol) [0x00B24FF7]</span><br/><span class="error">E   	BaseThreadInitThunk [0x763D6BA9+25]</span><br/><span class="error">E   	RtlGetFullPathName_UEx [0x77098F9F+1215]</span><br/><span class="error">E   	RtlGetFullPathName_UEx [0x77098F6D+1165]</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_7_PS3_overdue</td>
+          <td class="col-duration">20.84</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:111: in test_7_PS3_overdue<br/>    self.check(practice_standard, link_index,<br/>main.py:25: in check<br/>    dashboard.click_case_count(link_index)<br/>page.py:60: in click_case_count<br/>    all_case_links[link_index].click()<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webelement.py:94: in click<br/>    self._execute(Command.CLICK_ELEMENT)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webelement.py:403: in _execute<br/>    return self._parent.execute(command, params)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webdriver.py:440: in execute<br/>    self.error_handler.check_response(response)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:245: in check_response<br/>    raise exception_class(message, screen, stacktrace)<br/><span class="error">E   selenium.common.exceptions.ElementClickInterceptedException: Message: element click intercepted: Element &lt;span _ngcontent-pvl-c841=&quot;&quot; class=&quot;f-field-5 clickable position ng-star-inserted&quot;&gt;...&lt;/span&gt; is not clickable at point (840, 68). Other element would receive the click: &lt;span _ngcontent-pvl-c214=&quot;&quot; class=&quot;pcoded-mtext f-header-5 ng-tns-c214-1&quot;&gt;...&lt;/span&gt;</span><br/><span class="error">E     (Session info: chrome=114.0.5735.110)</span><br/><span class="error">E   Stacktrace:</span><br/><span class="error">E   Backtrace:</span><br/><span class="error">E   	GetHandleVerifier [0x00B9A813+48355]</span><br/><span class="error">E   	(No symbol) [0x00B2C4B1]</span><br/><span class="error">E   	(No symbol) [0x00A35358]</span><br/><span class="error">E   	(No symbol) [0x00A65062]</span><br/><span class="error">E   	(No symbol) [0x00A63B98]</span><br/><span class="error">E   	(No symbol) [0x00A6239B]</span><br/><span class="error">E   	(No symbol) [0x00A6179E]</span><br/><span class="error">E   	(No symbol) [0x00A59F5C]</span><br/><span class="error">E   	(No symbol) [0x00A7A73C]</span><br/><span class="error">E   	(No symbol) [0x00A59A36]</span><br/><span class="error">E   	(No symbol) [0x00A7AA94]</span><br/><span class="error">E   	(No symbol) [0x00A8C922]</span><br/><span class="error">E   	(No symbol) [0x00A7A536]</span><br/><span class="error">E   	(No symbol) [0x00A582DC]</span><br/><span class="error">E   	(No symbol) [0x00A593DD]</span><br/><span class="error">E   	GetHandleVerifier [0x00DFAABD+2539405]</span><br/><span class="error">E   	GetHandleVerifier [0x00E3A78F+2800735]</span><br/><span class="error">E   	GetHandleVerifier [0x00E3456C+2775612]</span><br/><span class="error">E   	GetHandleVerifier [0x00C251E0+616112]</span><br/><span class="error">E   	(No symbol) [0x00B35F8C]</span><br/><span class="error">E   	(No symbol) [0x00B32328]</span><br/><span class="error">E   	(No symbol) [0x00B3240B]</span><br/><span class="error">E   	(No symbol) [0x00B24FF7]</span><br/><span class="error">E   	BaseThreadInitThunk [0x763D6BA9+25]</span><br/><span class="error">E   	RtlGetFullPathName_UEx [0x77098F9F+1215]</span><br/><span class="error">E   	RtlGetFullPathName_UEx [0x77098F6D+1165]</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_8_PS4_overdue</td>
+          <td class="col-duration">31.78</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:44: in check<br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: ENQ149512 is missing from the listing!</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: Intake interview is conducted within (b) 14 calendar days from receipt of other referrals (i.e. cases)
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: ENQ149508
+Reference No: ENQ149510
+Reference No: ENQ149511
+Reference No: ENQ149512
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: ENQ149513
+Reference No: ENQ149514
+Reference No: ENQ149515
+Reference No: ENQ149516
+Reference No: ENQ149518
+Reference No: ENQ149519
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_9_PS4_1To7</td>
+          <td class="col-duration">27.41</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:53: in check<br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: ENQ149517 was found - not supposed to be in the listing!</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: Intake interview is conducted within (b) 14 calendar days from receipt of other referrals (i.e. cases)
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: ENQ149515
+Reference No: ENQ149516
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: ENQ149517
+Reference No: ENQ149518
+Reference No: ENQ149519
+Reference No: ENQ149508
+Reference No: ENQ149510
+Reference No: ENQ149511
+Reference No: ENQ149512
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_10_PS4_8To14</td>
+          <td class="col-duration">31.87</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:53: in check<br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: ENQ149520 was found - not supposed to be in the listing!</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: Intake interview is conducted within (b) 14 calendar days from receipt of other referrals (i.e. cases)
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: ENQ149518
+Reference No: ENQ149519
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: ENQ149520
+Reference No: ENQ149515
+Reference No: ENQ149516
+Reference No: ENQ149508
+Reference No: ENQ149510
+Reference No: ENQ149511
+Reference No: ENQ149512
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_17_PS6_1To15</td>
+          <td class="col-duration">21.36</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:199: in test_17_PS6_1To15<br/>    self.check(practice_standard, link_index,<br/>main.py:25: in check<br/>    dashboard.click_case_count(link_index)<br/>page.py:60: in click_case_count<br/>    all_case_links[link_index].click()<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webelement.py:94: in click<br/>    self._execute(Command.CLICK_ELEMENT)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webelement.py:403: in _execute<br/>    return self._parent.execute(command, params)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webdriver.py:440: in execute<br/>    self.error_handler.check_response(response)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:245: in check_response<br/>    raise exception_class(message, screen, stacktrace)<br/><span class="error">E   selenium.common.exceptions.ElementClickInterceptedException: Message: element click intercepted: Element &lt;span _ngcontent-bmh-c841=&quot;&quot; class=&quot;f-field-5 clickable position ng-star-inserted&quot;&gt;...&lt;/span&gt; is not clickable at point (840, 67). Other element would receive the click: &lt;span _ngcontent-bmh-c214=&quot;&quot; class=&quot;pcoded-mtext f-header-5 ng-tns-c214-1&quot;&gt;...&lt;/span&gt;</span><br/><span class="error">E     (Session info: chrome=114.0.5735.110)</span><br/><span class="error">E   Stacktrace:</span><br/><span class="error">E   Backtrace:</span><br/><span class="error">E   	GetHandleVerifier [0x00B9A813+48355]</span><br/><span class="error">E   	(No symbol) [0x00B2C4B1]</span><br/><span class="error">E   	(No symbol) [0x00A35358]</span><br/><span class="error">E   	(No symbol) [0x00A65062]</span><br/><span class="error">E   	(No symbol) [0x00A63B98]</span><br/><span class="error">E   	(No symbol) [0x00A6239B]</span><br/><span class="error">E   	(No symbol) [0x00A6179E]</span><br/><span class="error">E   	(No symbol) [0x00A59F5C]</span><br/><span class="error">E   	(No symbol) [0x00A7A73C]</span><br/><span class="error">E   	(No symbol) [0x00A59A36]</span><br/><span class="error">E   	(No symbol) [0x00A7AA94]</span><br/><span class="error">E   	(No symbol) [0x00A8C922]</span><br/><span class="error">E   	(No symbol) [0x00A7A536]</span><br/><span class="error">E   	(No symbol) [0x00A582DC]</span><br/><span class="error">E   	(No symbol) [0x00A593DD]</span><br/><span class="error">E   	GetHandleVerifier [0x00DFAABD+2539405]</span><br/><span class="error">E   	GetHandleVerifier [0x00E3A78F+2800735]</span><br/><span class="error">E   	GetHandleVerifier [0x00E3456C+2775612]</span><br/><span class="error">E   	GetHandleVerifier [0x00C251E0+616112]</span><br/><span class="error">E   	(No symbol) [0x00B35F8C]</span><br/><span class="error">E   	(No symbol) [0x00B32328]</span><br/><span class="error">E   	(No symbol) [0x00B3240B]</span><br/><span class="error">E   	(No symbol) [0x00B24FF7]</span><br/><span class="error">E   	BaseThreadInitThunk [0x763D6BA9+25]</span><br/><span class="error">E   	RtlGetFullPathName_UEx [0x77098F9F+1215]</span><br/><span class="error">E   	RtlGetFullPathName_UEx [0x77098F6D+1165]</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_18_PS6_16To30</td>
+          <td class="col-duration">36.45</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:44: in check<br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: OTP270084 is missing from the listing!</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *Face-to-face sessions with clients to be held Minimally once a month (CSWP 3 or 4 or those with known risk or safety concerns)
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270083
+Reference No: OTP270084
+Reference No: OTP270087
+Reference No: OTP270088
+Reference No: OTP270337
+Reference No: OTP270339
+Reference No: OTP270340
+Reference No: OTP270342
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP269313
+Reference No: OTP269314
+Reference No: OTP269316
+Reference No: OTP269317
+Reference No: OTP269318
+Reference No: OTP269319
+Reference No: OTP269322
+Reference No: OTP269324
+Reference No: OTP269330
+Reference No: OTP269333
+Reference No: OTP269336
+Reference No: OTP269343
+Reference No: OTP269345
+Reference No: OTP269568
+Reference No: OTP269824
+Reference No: OTP269825
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_22_PS7_4To5</td>
+          <td class="col-duration">29.80</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:53: in check<br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: OTP270380 was found - not supposed to be in the listing!main.py:53: in check</span><br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: OTP270381 was found - not supposed to be in the listing!</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *For families where there are difficulties contacting them Minimally 3 efforts within 5 working days
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270377
+Reference No: OTP270378
+Reference No: OTP270379
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270380
+Reference No: OTP270381
+Reference No: OTP270365
+Reference No: OTP270366
+Reference No: OTP270371
+Reference No: OTP270609
+Reference No: OTP270610
+Reference No: OTP270346
+Reference No: OTP270349
+Reference No: OTP270356
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_23_PS8</td>
+          <td class="col-duration">29.23</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:34: in check<br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: Practice standard doesn&#x27;t match!</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: Uncontactable case tagging with risk or safety concerns
+Practice standard (from Dashboard Requirements_v1.3):
+ Uncontactable case tagging with risk or safety Concerns
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270592
+Reference No: OTP270593
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270594
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_26_PS10_overdue</td>
+          <td class="col-duration">40.69</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:34: in check<br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: Practice standard doesn&#x27;t match!</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *Face-to-face sessions with clients to be held minimally once every 2 months (CSWP 2 or those with no known risk or safety concerns)
+Practice standard (from Dashboard Requirements_v1.3):
+ *Face-to-face sessions with clients to be held minimally once every 2 months(CSWP 2 or those with no known risk or safety concerns)
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270374
+Reference No: OTP270376
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270360
+Reference No: OTP270362
+Reference No: OTP270364
+Reference No: OTP270368
+Reference No: OTP270350
+Reference No: OTP270352
+Reference No: OTP270354
+Reference No: OTP270355
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_28_PS10_1To30</td>
+          <td class="col-duration">30.58</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:34: in check<br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: Practice standard doesn&#x27;t match!main.py:53: in check</span><br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: OTP270352 was found - not supposed to be in the listing!</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *Face-to-face sessions with clients to be held minimally once every 2 months (CSWP 2 or those with no known risk or safety concerns)
+Practice standard (from Dashboard Requirements_v1.3):
+ *Face-to-face sessions with clients to be held minimally once every 2 months(CSWP 2 or those with no known risk or safety concerns)
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270360
+Reference No: OTP270362
+Reference No: OTP270364
+Reference No: OTP270368
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270350
+Reference No: OTP270352
+Reference No: OTP270354
+Reference No: OTP270355
+Reference No: OTP270374
+Reference No: OTP270376
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_29_PS10_31To60</td>
+          <td class="col-duration">22.49</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:296: in test_29_PS10_31To60<br/>    self.check(practice_standard, link_index,<br/>main.py:25: in check<br/>    dashboard.click_case_count(link_index)<br/>page.py:60: in click_case_count<br/>    all_case_links[link_index].click()<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webelement.py:94: in click<br/>    self._execute(Command.CLICK_ELEMENT)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webelement.py:403: in _execute<br/>    return self._parent.execute(command, params)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webdriver.py:440: in execute<br/>    self.error_handler.check_response(response)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:245: in check_response<br/>    raise exception_class(message, screen, stacktrace)<br/><span class="error">E   selenium.common.exceptions.ElementClickInterceptedException: Message: element click intercepted: Element &lt;span _ngcontent-hra-c841=&quot;&quot; class=&quot;f-field-5 clickable position ng-star-inserted&quot;&gt;...&lt;/span&gt; is not clickable at point (840, 67). Other element would receive the click: &lt;span _ngcontent-hra-c214=&quot;&quot; class=&quot;pcoded-mtext f-header-5 ng-tns-c214-1&quot;&gt;...&lt;/span&gt;</span><br/><span class="error">E     (Session info: chrome=114.0.5735.110)</span><br/><span class="error">E   Stacktrace:</span><br/><span class="error">E   Backtrace:</span><br/><span class="error">E   	GetHandleVerifier [0x00B9A813+48355]</span><br/><span class="error">E   	(No symbol) [0x00B2C4B1]</span><br/><span class="error">E   	(No symbol) [0x00A35358]</span><br/><span class="error">E   	(No symbol) [0x00A65062]</span><br/><span class="error">E   	(No symbol) [0x00A63B98]</span><br/><span class="error">E   	(No symbol) [0x00A6239B]</span><br/><span class="error">E   	(No symbol) [0x00A6179E]</span><br/><span class="error">E   	(No symbol) [0x00A59F5C]</span><br/><span class="error">E   	(No symbol) [0x00A7A73C]</span><br/><span class="error">E   	(No symbol) [0x00A59A36]</span><br/><span class="error">E   	(No symbol) [0x00A7AA94]</span><br/><span class="error">E   	(No symbol) [0x00A8C922]</span><br/><span class="error">E   	(No symbol) [0x00A7A536]</span><br/><span class="error">E   	(No symbol) [0x00A582DC]</span><br/><span class="error">E   	(No symbol) [0x00A593DD]</span><br/><span class="error">E   	GetHandleVerifier [0x00DFAABD+2539405]</span><br/><span class="error">E   	GetHandleVerifier [0x00E3A78F+2800735]</span><br/><span class="error">E   	GetHandleVerifier [0x00E3456C+2775612]</span><br/><span class="error">E   	GetHandleVerifier [0x00C251E0+616112]</span><br/><span class="error">E   	(No symbol) [0x00B35F8C]</span><br/><span class="error">E   	(No symbol) [0x00B32328]</span><br/><span class="error">E   	(No symbol) [0x00B3240B]</span><br/><span class="error">E   	(No symbol) [0x00B24FF7]</span><br/><span class="error">E   	BaseThreadInitThunk [0x763D6BA9+25]</span><br/><span class="error">E   	RtlGetFullPathName_UEx [0x77098F9F+1215]</span><br/><span class="error">E   	RtlGetFullPathName_UEx [0x77098F6D+1165]</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_30_PS11_overdue</td>
+          <td class="col-duration">22.07</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:307: in test_30_PS11_overdue<br/>    self.check(practice_standard, link_index,<br/>main.py:25: in check<br/>    dashboard.click_case_count(link_index)<br/>page.py:60: in click_case_count<br/>    all_case_links[link_index].click()<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webelement.py:94: in click<br/>    self._execute(Command.CLICK_ELEMENT)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webelement.py:403: in _execute<br/>    return self._parent.execute(command, params)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webdriver.py:440: in execute<br/>    self.error_handler.check_response(response)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:245: in check_response<br/>    raise exception_class(message, screen, stacktrace)<br/><span class="error">E   selenium.common.exceptions.ElementClickInterceptedException: Message: element click intercepted: Element &lt;span _ngcontent-ayq-c841=&quot;&quot; class=&quot;f-field-5 clickable position ng-star-inserted&quot;&gt;...&lt;/span&gt; is not clickable at point (840, 67). Other element would receive the click: &lt;span _ngcontent-ayq-c214=&quot;&quot; class=&quot;pcoded-mtext f-header-5 ng-tns-c214-1&quot;&gt;...&lt;/span&gt;</span><br/><span class="error">E     (Session info: chrome=114.0.5735.110)</span><br/><span class="error">E   Stacktrace:</span><br/><span class="error">E   Backtrace:</span><br/><span class="error">E   	GetHandleVerifier [0x00B9A813+48355]</span><br/><span class="error">E   	(No symbol) [0x00B2C4B1]</span><br/><span class="error">E   	(No symbol) [0x00A35358]</span><br/><span class="error">E   	(No symbol) [0x00A65062]</span><br/><span class="error">E   	(No symbol) [0x00A63B98]</span><br/><span class="error">E   	(No symbol) [0x00A6239B]</span><br/><span class="error">E   	(No symbol) [0x00A6179E]</span><br/><span class="error">E   	(No symbol) [0x00A59F5C]</span><br/><span class="error">E   	(No symbol) [0x00A7A73C]</span><br/><span class="error">E   	(No symbol) [0x00A59A36]</span><br/><span class="error">E   	(No symbol) [0x00A7AA94]</span><br/><span class="error">E   	(No symbol) [0x00A8C922]</span><br/><span class="error">E   	(No symbol) [0x00A7A536]</span><br/><span class="error">E   	(No symbol) [0x00A582DC]</span><br/><span class="error">E   	(No symbol) [0x00A593DD]</span><br/><span class="error">E   	GetHandleVerifier [0x00DFAABD+2539405]</span><br/><span class="error">E   	GetHandleVerifier [0x00E3A78F+2800735]</span><br/><span class="error">E   	GetHandleVerifier [0x00E3456C+2775612]</span><br/><span class="error">E   	GetHandleVerifier [0x00C251E0+616112]</span><br/><span class="error">E   	(No symbol) [0x00B35F8C]</span><br/><span class="error">E   	(No symbol) [0x00B32328]</span><br/><span class="error">E   	(No symbol) [0x00B3240B]</span><br/><span class="error">E   	(No symbol) [0x00B24FF7]</span><br/><span class="error">E   	BaseThreadInitThunk [0x763D6BA9+25]</span><br/><span class="error">E   	RtlGetFullPathName_UEx [0x77098F9F+1215]</span><br/><span class="error">E   	RtlGetFullPathName_UEx [0x77098F6D+1165]</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_32_PS11_1To5</td>
+          <td class="col-duration">32.39</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:44: in check<br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: OTP252440 is missing from the listing!main.py:44: in check</span><br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: OTP251694 is missing from the listing!main.py:53: in check</span><br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: OTP251700 was found - not supposed to be in the listing!</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *For families where there are difficulties contacting them Minimally 3 efforts within 10 working days
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP252440
+Reference No: OTP251694
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP251697
+Reference No: OTP251700
+Reference No: OTP251703
+Reference No: OTP251682
+Reference No: OTP251689
+Reference No: OTP252687
+Reference No: OTP265987
+Reference No: OTP260365
+Reference No: OTP251685
+Reference No: OTP251691
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_39_PS15</td>
+          <td class="col-duration">41.71</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:43: in check<br/>    if not results.is_record_found(ref_no):<br/>page.py:77: in is_record_found<br/>    search_bar = self.driver.find_element(*ResultPageLocators.SEARCH_BAR)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webdriver.py:831: in find_element<br/>    return self.execute(Command.FIND_ELEMENT, {&quot;using&quot;: by, &quot;value&quot;: value})[&quot;value&quot;]<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\webdriver.py:440: in execute<br/>    self.error_handler.check_response(response)<br/>..\..\..\..\..\AppData\Local\Programs\Python\Python311\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:245: in check_response<br/>    raise exception_class(message, screen, stacktrace)<br/><span class="error">E   selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {&quot;method&quot;:&quot;xpath&quot;,&quot;selector&quot;:&quot;//input[@type=&#x27;search&#x27;]&quot;}</span><br/><span class="error">E     (Session info: chrome=114.0.5735.110)</span><br/><span class="error">E   Stacktrace:</span><br/><span class="error">E   Backtrace:</span><br/><span class="error">E   	GetHandleVerifier [0x00B9A813+48355]</span><br/><span class="error">E   	(No symbol) [0x00B2C4B1]</span><br/><span class="error">E   	(No symbol) [0x00A35358]</span><br/><span class="error">E   	(No symbol) [0x00A609A5]</span><br/><span class="error">E   	(No symbol) [0x00A60B3B]</span><br/><span class="error">E   	(No symbol) [0x00A8E232]</span><br/><span class="error">E   	(No symbol) [0x00A7A784]</span><br/><span class="error">E   	(No symbol) [0x00A8C922]</span><br/><span class="error">E   	(No symbol) [0x00A7A536]</span><br/><span class="error">E   	(No symbol) [0x00A582DC]</span><br/><span class="error">E   	(No symbol) [0x00A593DD]</span><br/><span class="error">E   	GetHandleVerifier [0x00DFAABD+2539405]</span><br/><span class="error">E   	GetHandleVerifier [0x00E3A78F+2800735]</span><br/><span class="error">E   	GetHandleVerifier [0x00E3456C+2775612]</span><br/><span class="error">E   	GetHandleVerifier [0x00C251E0+616112]</span><br/><span class="error">E   	(No symbol) [0x00B35F8C]</span><br/><span class="error">E   	(No symbol) [0x00B32328]</span><br/><span class="error">E   	(No symbol) [0x00B3240B]</span><br/><span class="error">E   	(No symbol) [0x00B24FF7]</span><br/><span class="error">E   	BaseThreadInitThunk [0x763D6BA9+25]</span><br/><span class="error">E   	RtlGetFullPathName_UEx [0x77098F9F+1215]</span><br/><span class="error">E   	RtlGetFullPathName_UEx [0x77098F6D+1165]</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: No in-progress follow-up action to track
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP250619
+Reference No: OTP250620
+Reference No: OTP250627
+Reference No: OTP250628
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP251169
+Reference No: OTP251174
+Reference No: OTP251175
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_47_PS17_31To60</td>
+          <td class="col-duration">37.18</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:44: in check<br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: OTP270359 is missing from the listing!main.py:44: in check</span><br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: OTP270370 is missing from the listing!</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *For uncontactable clients, a discussion between SWPs and other stakeholders/professionals should be conducted by the 2nd month should efforts to engage family not be successful.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270359
+Reference No: OTP270367
+Reference No: OTP270369
+Reference No: OTP270370
+Reference No: OTP270372
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270085
+Reference No: OTP270086
+Reference No: OTP270089
+Reference No: OTP270353
+Reference No: OTP270357
+Reference No: OTP251140
+Reference No: OTP251150
+Reference No: OTP251155
+Reference No: OTP251156
+Reference No: OTP250629
+Reference No: OTP250618
+Reference No: OTP250113
+Reference No: OTP249603
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_50_PS18_1To30</td>
+          <td class="col-duration">32.90</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:44: in check<br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: OTP269328 is missing from the listing!</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *Efforts to contact family (Outcome Plan) members or significant others Within the first 2 months of the case being opened.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP269326
+Reference No: OTP269327
+Reference No: OTP269328
+Reference No: OTP269329
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP273152
+Reference No: OTP273153
+Reference No: OTP270080
+Reference No: OTP270081
+Reference No: OTP269320
+Reference No: OTP269321
+Reference No: OTP269323
+Reference No: OTP269325
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_53_PS19_60To90</td>
+          <td class="col-duration">27.32</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">main.py:44: in check<br/>    raise AssertionError(<br/><span class="error">E   AssertionError: ERROR: OTP273157 is missing from the listing!</span><br/> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: Latest case recording session date
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP273159
+Reference No: OTP273156
+Reference No: OTP273157
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP273158
+Reference No: OTP273154
+Reference No: OTP273155
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_1_PS1_overdue</td>
+          <td class="col-duration">38.20</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *In receiving a referral from other agencies, SWP to acknowledge receipt of the case and inform referral agency on the assigned caseworker within 3 working days.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: ENQ147968
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: ENQ147969
+Reference No: ENQ147970
+Reference No: ENQ147971
+Reference No: ENQ147972
+Reference No: ENQ147973
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_3_PS2_overdue</td>
+          <td class="col-duration">29.39</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *SWP to provide referring agency with an update/outcome (whether taken up, referred out or closed at intake) within 10 working days of the referral.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: ENQ147974
+Reference No: ENQ148480
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: ENQ147975
+Reference No: ENQ147976
+Reference No: ENQ147977
+Reference No: ENQ148482
+Reference No: ENQ148481
+Reference No: ENQ148488
+Reference No: ENQ148489
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_5_PS2_1To5</td>
+          <td class="col-duration">30.40</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *SWP to provide referring agency with an update/outcome (whether taken up, referred out or closed at intake) within 10 working days of the referral.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: ENQ148482
+Reference No: ENQ148481
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: ENQ148483
+Reference No: ENQ148484
+Reference No: ENQ148485
+Reference No: ENQ147974
+Reference No: ENQ148480
+Reference No: ENQ148488
+Reference No: ENQ148489
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_11_PS5_overdue</td>
+          <td class="col-duration">29.31</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *For cases with risk or safety concerns, a home visit should be done within 1 month from case being opened.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270850
+Reference No: OTP270851
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270852
+Reference No: OTP274432
+Reference No: OTP270857
+Reference No: OTP270858
+Reference No: OTP270853
+Reference No: OTP270855
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_13_PS5_1To15</td>
+          <td class="col-duration">29.34</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *For cases with risk or safety concerns, a home visit should be done within 1 month from case being opened.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270853
+Reference No: OTP270855
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270856
+Reference No: OTP270857
+Reference No: OTP270858
+Reference No: OTP270850
+Reference No: OTP270851
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_14_PS5_16To30</td>
+          <td class="col-duration">28.02</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *For cases with risk or safety concerns, a home visit should be done within 1 month from case being opened.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270857
+Reference No: OTP270858
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270859
+Reference No: OTP270853
+Reference No: OTP270855
+Reference No: OTP270850
+Reference No: OTP270851
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_15_PS6_overdue</td>
+          <td class="col-duration">34.61</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *Face-to-face sessions with clients to be held Minimally once a month (CSWP 3 or 4 or those with known risk or safety concerns)
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP269313
+Reference No: OTP269314
+Reference No: OTP269316
+Reference No: OTP269317
+Reference No: OTP269318
+Reference No: OTP269319
+Reference No: OTP269322
+Reference No: OTP269324
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270083
+Reference No: OTP270084
+Reference No: OTP270087
+Reference No: OTP270088
+Reference No: OTP270337
+Reference No: OTP270339
+Reference No: OTP270340
+Reference No: OTP270342
+Reference No: OTP269330
+Reference No: OTP269333
+Reference No: OTP269336
+Reference No: OTP269343
+Reference No: OTP269345
+Reference No: OTP269568
+Reference No: OTP269824
+Reference No: OTP269825
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_19_PS7_overdue</td>
+          <td class="col-duration">31.03</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *For families where there are difficulties contacting them Minimally 3 efforts within 5 working days
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270609
+Reference No: OTP270610
+Reference No: OTP270346
+Reference No: OTP270349
+Reference No: OTP270356
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270361
+Reference No: OTP270363
+Reference No: OTP270365
+Reference No: OTP270366
+Reference No: OTP270371
+Reference No: OTP270377
+Reference No: OTP270378
+Reference No: OTP270379
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_21_PS7_1To3</td>
+          <td class="col-duration">32.14</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *For families where there are difficulties contacting them Minimally 3 efforts within 5 working days
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270365
+Reference No: OTP270366
+Reference No: OTP270371
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270373
+Reference No: OTP270375
+Reference No: OTP270377
+Reference No: OTP270378
+Reference No: OTP270379
+Reference No: OTP270609
+Reference No: OTP270610
+Reference No: OTP270346
+Reference No: OTP270349
+Reference No: OTP270356
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_24_PS9</td>
+          <td class="col-duration">35.68</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *To ensure a comprehensive assessment on all cases, there should at least be a home visit done once case is opened, where possible.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270595
+Reference No: OTP270596
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270597
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_33_PS11_6To10</td>
+          <td class="col-duration">33.10</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *For families where there are difficulties contacting them Minimally 3 efforts within 10 working days
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP251703
+Reference No: OTP251682
+Reference No: OTP251689
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP251147
+Reference No: OTP251141
+Reference No: OTP252440
+Reference No: OTP251694
+Reference No: OTP252687
+Reference No: OTP265987
+Reference No: OTP260365
+Reference No: OTP251685
+Reference No: OTP251691
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_34_PS12</td>
+          <td class="col-duration">29.59</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: General cases with uncontactable case tagging
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP251142
+Reference No: OTP251144
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP251145
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_35_PS13</td>
+          <td class="col-duration">29.29</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: Outstanding follow-up action to track (passed deadline)
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270602
+Reference No: OTP251149
+Reference No: OTP270336
+Reference No: OTP251148
+Reference No: OTP251156
+Reference No: OTP251168
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_36_PS14_1To7</td>
+          <td class="col-duration">31.35</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: In-progress follow-up action to track
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP251169
+Reference No: OTP251174
+Reference No: OTP251175
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP251176
+Reference No: OTP251177
+Reference No: OTP251136
+Reference No: OTP251139
+Reference No: OTP250624
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_37_PS14_8To14</td>
+          <td class="col-duration">28.24</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: In-progress follow-up action to track
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP251176
+Reference No: OTP251177
+Reference No: OTP251136
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP251169
+Reference No: OTP251174
+Reference No: OTP251175
+Reference No: OTP251139
+Reference No: OTP250624
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_38_PS14_moreThan14</td>
+          <td class="col-duration">29.44</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: In-progress follow-up action to track
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP251139
+Reference No: OTP250624
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP251169
+Reference No: OTP251174
+Reference No: OTP251175
+Reference No: OTP251176
+Reference No: OTP251177
+Reference No: OTP251136
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_40_PS16_overdue</td>
+          <td class="col-duration">38.89</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *SWP to make an effort to contact other professionals, stakeholders, or significant others within 10 working days from the time case is opened.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP260360
+Reference No: OTP260367
+Reference No: OTP260368
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP243466
+Reference No: OTP243467
+Reference No: OTP242957
+Reference No: OTP267265
+Reference No: OTP269332
+Reference No: OTP269346
+Reference No: OTP269347
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_42_PS16_1To5</td>
+          <td class="col-duration">32.08</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *SWP to make an effort to contact other professionals, stakeholders, or significant others within 10 working days from the time case is opened.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP267265
+Reference No: OTP269332
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP269346
+Reference No: OTP269347
+Reference No: OTP260360
+Reference No: OTP260367
+Reference No: OTP260368
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_43_PS16_6To10</td>
+          <td class="col-duration">28.06</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *SWP to make an effort to contact other professionals, stakeholders, or significant others within 10 working days from the time case is opened.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP269346
+Reference No: OTP269347
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP267265
+Reference No: OTP269332
+Reference No: OTP260360
+Reference No: OTP260367
+Reference No: OTP260368
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_44_PS17_overdue</td>
+          <td class="col-duration">32.91</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *For uncontactable clients, a discussion between SWPs and other stakeholders/professionals should be conducted by the 2nd month should efforts to engage family not be successful.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP251140
+Reference No: OTP251150
+Reference No: OTP251155
+Reference No: OTP251156
+Reference No: OTP250629
+Reference No: OTP250618
+Reference No: OTP250113
+Reference No: OTP249603
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270085
+Reference No: OTP270086
+Reference No: OTP270089
+Reference No: OTP270353
+Reference No: OTP270357
+Reference No: OTP270359
+Reference No: OTP270367
+Reference No: OTP270369
+Reference No: OTP270370
+Reference No: OTP270372
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test46_PS17_1To30</td>
+          <td class="col-duration">35.15</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *For uncontactable clients, a discussion between SWPs and other stakeholders/professionals should be conducted by the 2nd month should efforts to engage family not be successful.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270085
+Reference No: OTP270086
+Reference No: OTP270089
+Reference No: OTP270353
+Reference No: OTP270357
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270359
+Reference No: OTP270367
+Reference No: OTP270369
+Reference No: OTP270370
+Reference No: OTP270372
+Reference No: OTP251140
+Reference No: OTP251150
+Reference No: OTP251155
+Reference No: OTP251156
+Reference No: OTP250629
+Reference No: OTP250618
+Reference No: OTP250113
+Reference No: OTP249603
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_48_PS18_overdue</td>
+          <td class="col-duration">29.74</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *Efforts to contact family (Outcome Plan) members or significant others Within the first 2 months of the case being opened.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP269320
+Reference No: OTP269321
+Reference No: OTP269323
+Reference No: OTP269325
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP273152
+Reference No: OTP273153
+Reference No: OTP270080
+Reference No: OTP270081
+Reference No: OTP269326
+Reference No: OTP269327
+Reference No: OTP269328
+Reference No: OTP269329
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_51_PS18_31To60</td>
+          <td class="col-duration">30.55</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: *Efforts to contact family (Outcome Plan) members or significant others Within the first 2 months of the case being opened.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP273152
+Reference No: OTP273153
+Reference No: OTP270080
+Reference No: OTP270081
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP269326
+Reference No: OTP269327
+Reference No: OTP269328
+Reference No: OTP269329
+Reference No: OTP269320
+Reference No: OTP269321
+Reference No: OTP269323
+Reference No: OTP269325
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_52_PS19_moreThan90</td>
+          <td class="col-duration">35.75</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: Latest case recording session date
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP273158
+Reference No: OTP273154
+Reference No: OTP273155
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP273159
+Reference No: OTP273156
+Reference No: OTP273157
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_54_PS20_overdue</td>
+          <td class="col-duration">33.12</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: The first Assessment and Case Plan for each case is to be completed within 60 calendar days for new cases.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP275464
+Reference No: OTP269334
+Reference No: OTP269335
+Reference No: OTP269337
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP269341
+Reference No: OTP269342
+Reference No: OTP270094
+Reference No: OTP269338
+Reference No: OTP269339
+Reference No: OTP269340
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_55_PS20_1To30</td>
+          <td class="col-duration">29.80</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: The first Assessment and Case Plan for each case is to be completed within 60 calendar days for new cases.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP269338
+Reference No: OTP269339
+Reference No: OTP269340
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP269341
+Reference No: OTP269342
+Reference No: OTP270094
+Reference No: OTP275464
+Reference No: OTP269334
+Reference No: OTP269335
+Reference No: OTP269337
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_56_PS20_31To60</td>
+          <td class="col-duration">28.49</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: The first Assessment and Case Plan for each case is to be completed within 60 calendar days for new cases.
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP269341
+Reference No: OTP269342
+Reference No: OTP270094
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP269338
+Reference No: OTP269339
+Reference No: OTP269340
+Reference No: OTP275464
+Reference No: OTP269334
+Reference No: OTP269335
+Reference No: OTP269337
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_57_PS21_overdue</td>
+          <td class="col-duration">31.57</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: All cases are to be reviewed at least once every six months (i.e. 180 calendar days)
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP203520
+Reference No: OTP270096
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP252170
+Reference No: OTP270341
+Reference No: OTP270343
+Reference No: OTP270344
+Reference No: OTP270336
+Reference No: OTP270338
+Reference No: OTP270602
+Reference No: OTP270604
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_58_PS21_1To30</td>
+          <td class="col-duration">28.61</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: All cases are to be reviewed at least once every six months (i.e. 180 calendar days)
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP270336
+Reference No: OTP270338
+Reference No: OTP270602
+Reference No: OTP270604
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP252170
+Reference No: OTP270341
+Reference No: OTP270343
+Reference No: OTP270344
+Reference No: OTP203520
+Reference No: OTP270096
+
+....Finished running test.....
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">main.py::DashboardSearchTest::test_59_PS21_31To60</td>
+          <td class="col-duration">35.15</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>
+.....Start running test....
+
+ &lt;== Verifying whether practice standard liner matches... ==&gt;
+
+Result: All cases are to be reviewed at least once every six months (i.e. 180 calendar days)
+
+ &lt;== Verifying whether these POSITIVE test data are in the listing... ==&gt;
+
+Reference No: OTP252170
+Reference No: OTP270341
+Reference No: OTP270343
+Reference No: OTP270344
+
+ &lt;== Verifying whether these NEGATIVE test data are not in the listing... ==&gt;
+
+Reference No: OTP270336
+Reference No: OTP270338
+Reference No: OTP270602
+Reference No: OTP270604
+Reference No: OTP203520
+Reference No: OTP270096
+
+....Finished running test.....
+<br/></div></td></tr></tbody></table></body></html>
